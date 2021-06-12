@@ -8,8 +8,6 @@ import (
 )
 
 func main() {
-	const port string = ":3000"
-
 	router := gin.Default()
 	firebaseAuth := config.SetupFirebase()
 	dynamodbCon := config.ConnectDynamoDB()
@@ -25,5 +23,5 @@ func main() {
 
 	router.GET("/api/auth", endpoints.Authentication)
 
-	router.Run(port)
+	router.Run()
 }
