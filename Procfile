@@ -1,0 +1,1 @@
+web: ./wasted-backend
