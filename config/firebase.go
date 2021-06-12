@@ -2,21 +2,26 @@ package config
 
 import (
 	"context"
-	"path/filepath"
+	"log"
+	"os"
 
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/auth"
+	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
 
-func SetupFirebase() *auth.Client {
-	serviceAccountKeyFilePath, err := filepath.Abs("./serviceAccountKey.json")
-	if err != nil {
-		panic("Unable to load serviceAccountKeys.json file")
+func init() {
+	if os.Getenv("APP_ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
+}
 
-	opt := option.WithCredentialsFile(serviceAccountKeyFilePath)
-	app, err := firebase.NewApp(context.Background(), nil, opt)
+func SetupFirebase() *auth.Client {
+	app, err := firebase.NewApp(context.Background(), nil, option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CONFIG"))))
 	if err != nil {
 		panic("Firebase load error")
 	}

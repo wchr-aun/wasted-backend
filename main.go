@@ -12,14 +12,14 @@ func main() {
 
 	router := gin.Default()
 	firebaseAuth := config.SetupFirebase()
-	firestoreCon := config.ConnectFirestore()
+	dynamodbCon := config.ConnectDynamoDB()
 
 	router.Use(middleware.CORSMiddleware())
 	router.Use(func(c *gin.Context) {
 		c.Set("firebaseAuth", firebaseAuth)
 	})
 	router.Use(func(c *gin.Context) {
-		c.Set("firestoreCon", firestoreCon)
+		c.Set("dynamodbCon", dynamodbCon)
 	})
 	router.Use(middleware.AuthMiddleware)
 

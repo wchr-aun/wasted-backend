@@ -1,40 +1,88 @@
 package endpoints
 
 import (
-	"context"
+	"log"
 	"net/http"
+	"os"
 
-	"cloud.google.com/go/firestore"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
+	"github.com/joho/godotenv"
+	"github.com/wchr-aun/wasted-backend/models"
 )
 
-func Authentication(c *gin.Context) {
-	firestoreCon := c.MustGet("firestoreCon").(*firestore.Client)
-	uuid := c.MustGet("UUID").(string)
+var USERS_TABLE string
 
-	defer firestoreCon.Close()
-
-	doc, err := firestoreCon.Collection("users").Doc(uuid).Get(context.Background())
-	if err != nil {
-		if grpc.Code(err) == codes.NotFound {
-			addUser(c, uuid)
-			return
+func init() {
+	if os.Getenv("APP_ENV") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"Message": "Internal Server Error",
-		})
+	}
+	USERS_TABLE = os.Getenv("USERS_TABLE")
+}
+
+func Authentication(c *gin.Context) {
+	uuid := c.MustGet("UUID").(string)
+	dynamodbCon := c.MustGet(("dynamodbCon")).(*dynamodb.DynamoDB)
+
+	result, err := dynamodbCon.GetItem(&dynamodb.GetItemInput{
+		TableName: aws.String(USERS_TABLE),
+		Key: map[string]*dynamodb.AttributeValue{
+			"uuid": {
+				S: aws.String(uuid),
+			},
+		},
+	})
+
+	if err != nil {
+		log.Fatalf("Got error calling GetItem: %s", err)
+	}
+
+	if result.Item == nil {
+		addUser(c)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"fullname": doc.Data()["fullname"].(string),
-	})
+	user := models.User{}
+
+	err = dynamodbattribute.UnmarshalMap(result.Item, &user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	}
+
+	c.JSON(http.StatusOK, user)
 }
 
-func addUser(c *gin.Context, uuid string) {
-	c.JSON(http.StatusOK, gin.H{
-		"hey": "ok",
-	})
+func addUser(c *gin.Context) {
+	uuid := c.MustGet(USERS_TABLE).(string)
+	dynamodbCon := c.MustGet(("dynamodbCon")).(*dynamodb.DynamoDB)
+
+	user := models.User{
+		Uuid:        uuid,
+		Fullname:    "test user",
+		PhoneNumber: "0123456789",
+	}
+
+	av, err := dynamodbattribute.MarshalMap(user)
+	if err != nil {
+		log.Fatalf("Got error marshalling new movie item: %s", err)
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String("users"),
+	}
+
+	_, err = dynamodbCon.PutItem(input)
+	if err != nil {
+		log.Fatalf("Got error calling PutItem: %s", err)
+	}
+
+	user.New = true
+
+	c.JSON(http.StatusOK, user)
 }
