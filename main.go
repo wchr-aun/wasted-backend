@@ -21,9 +21,15 @@ func main() {
 	router.Use(func(c *gin.Context) {
 		c.Set("dynamodbCon", dynamodbCon)
 	})
-	router.Use(middleware.AuthMiddleware)
 
-	router.GET("/api/auth", endpoints.Authentication)
+	// public routes
+	// router.GET("", endpoints)
+
+	// private routes
+	private := router.Group("/api")
+	private.Use(middleware.AuthMiddleware)
+	private.GET("/auth", endpoints.GetAuthentication)
+	private.POST("/auth", endpoints.PostAuthentication)
 
 	router.Run(port)
 }

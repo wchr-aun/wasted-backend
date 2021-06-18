@@ -3,29 +3,15 @@ package endpoints
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/wchr-aun/wasted-backend/models"
 )
 
-var USERS_TABLE string
-
-func init() {
-	if os.Getenv("APP_ENV") != "production" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-	}
-	USERS_TABLE = os.Getenv("USERS_TABLE")
-}
-
-func Authentication(c *gin.Context) {
+func GetAuthentication(c *gin.Context) {
 	uuid := c.MustGet("UUID").(string)
 	dynamodbCon := c.MustGet(("dynamodbCon")).(*dynamodb.DynamoDB)
 
@@ -39,37 +25,58 @@ func Authentication(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Fatalf("Got error calling GetItem: %s", err)
+		log.Printf("Got error calling GetItem: %s", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 
 	if result.Item == nil {
-		addUser(c)
+		err := registerUser(c, models.UserTable{Uuid: uuid})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, err)
+		}
+
+		c.JSON(http.StatusOK, models.UserResponse{
+			New: true,
+		})
 		return
 	}
 
-	user := models.User{}
+	userResponse := models.UserResponse{}
 
-	err = dynamodbattribute.UnmarshalMap(result.Item, &user)
+	err = dynamodbattribute.UnmarshalMap(result.Item, &userResponse)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, userResponse)
 }
 
-func addUser(c *gin.Context) {
-	uuid := c.MustGet(USERS_TABLE).(string)
-	dynamodbCon := c.MustGet(("dynamodbCon")).(*dynamodb.DynamoDB)
+func PostAuthentication(c *gin.Context) {
+	uuid := c.MustGet("UUID").(string)
 
-	user := models.User{
-		Uuid:        uuid,
-		Fullname:    "test user",
-		PhoneNumber: "0123456789",
+	addingUser := models.UserTable{
+		Uuid: uuid,
 	}
+	c.ShouldBind(&addingUser)
+
+	registerUser(c, addingUser)
+
+	userResponse := models.UserResponse{
+		Fullname:    addingUser.Fullname,
+		PhoneNumber: addingUser.PhoneNumber,
+		PhotoUrl:    addingUser.PhotoUrl,
+	}
+
+	c.JSON(http.StatusOK, userResponse)
+}
+
+func registerUser(c *gin.Context, user models.UserTable) gin.H {
+	dynamodbCon := c.MustGet(("dynamodbCon")).(*dynamodb.DynamoDB)
 
 	av, err := dynamodbattribute.MarshalMap(user)
 	if err != nil {
-		log.Fatalf("Got error marshalling new movie item: %s", err)
+		log.Printf("Got error marshalling new movie item: %s", err)
+		return gin.H{"title": "Internal Server Error", "msg": "Please contact admins for the help"}
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -79,10 +86,9 @@ func addUser(c *gin.Context) {
 
 	_, err = dynamodbCon.PutItem(input)
 	if err != nil {
-		log.Fatalf("Got error calling PutItem: %s", err)
+		log.Printf("Got error calling PutItem: %s", err)
+		return gin.H{"title": "Internal Server Error", "msg": "Please contact admins for the help"}
 	}
 
-	user.New = true
-
-	c.JSON(http.StatusOK, user)
+	return nil
 }

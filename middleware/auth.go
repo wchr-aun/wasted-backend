@@ -17,7 +17,7 @@ func AuthMiddleware(c *gin.Context) {
 	idToken := strings.TrimSpace(strings.Replace(authorizationToken, "Bearer", "", 1))
 
 	if idToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Id token not available"})
+		c.JSON(http.StatusBadRequest, gin.H{"title": "Authentication Required", "msg": "You need to login in order to use this service"})
 		c.Abort()
 		return
 	}
@@ -25,7 +25,7 @@ func AuthMiddleware(c *gin.Context) {
 	token, err := firebaseAuth.VerifyIDToken(context.Background(), idToken)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"title": "Token Invalid", "msg": "Access Token is not valid"})
 		c.Abort()
 		return
 	}
