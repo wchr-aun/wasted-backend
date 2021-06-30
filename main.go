@@ -29,5 +29,11 @@ func main() {
 	private.GET("/auth", endpoints.GetAuthentication)
 	private.POST("/auth", endpoints.PostAuthentication)
 
+	// waste routes
+	wasteHandler := new(endpoints.WasteHandler)
+	wasteRouter := private.Group("/waste")
+	wasteRouter.GET("getMaster", wasteHandler.GetMasterWasteType)
+	wasteRouter.GET("getWaste", wasteHandler.GetWasteSeller)
+
 	router.Run()
 }
