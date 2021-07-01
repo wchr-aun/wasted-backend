@@ -30,10 +30,10 @@ func main() {
 	private.POST("/auth", endpoints.PostAuthentication)
 
 	// waste routes
-	wasteHandler := new(endpoints.WasteHandler)
+	wasteHandler := endpoints.InitWasteHandler(dynamodbCon)
 	wasteRouter := private.Group("/waste")
 	wasteRouter.GET("getMaster", wasteHandler.GetMasterWasteType)
 	wasteRouter.GET("getWaste", wasteHandler.GetWasteSeller)
-
+	wasteRouter.POST("updateWaste", wasteHandler.UpdateWasteSeller)
 	router.Run()
 }

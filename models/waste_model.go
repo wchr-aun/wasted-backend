@@ -1,7 +1,7 @@
 package models
 
 type MasterWasteType struct {
-	WasteId     string `json:"wasteId"`
+	WasteId     int    `json:"wasteId"`
 	Type        string `json:"type"`
 	SubType     string `json:"subType"`
 	Description string `json:"description"`
@@ -12,7 +12,7 @@ type MasterWasteType struct {
 }
 
 type SellerWaste struct {
-	SellerId string `json:"sellerId"`
-	WasteId  string `json:"wasteId"`
-	Amount   int    `json:"amount"`
+	SellerId string `json:"sellerId" form:"sellerId"`
+	WasteId  int    `json:"wasteId" form:"wasteId"`
+	Amount   int    `json:"amount" form:"amount"`
 }
